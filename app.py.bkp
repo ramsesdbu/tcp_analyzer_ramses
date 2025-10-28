@@ -1,0 +1,103 @@
+import streamlit as st
+import pandas as pd
+import plotly.express as px
+from scapy.all import rdpcap, TCP, IP
+import tempfile
+
+st.set_page_config(page_title="TCP Packet Analyzer", layout="wide")
+st.title("TCP Packet Analyzer")
+st.markdown("Upload file `.pcap` untuk analisa sederhana paket TCP dan deteksi potensi masalah jaringan.")
+
+uploaded_file = st.file_uploader("Pilih file PCAP", type=["pcap"])
+
+def parse_pcap(file_path):
+    packets = rdpcap(file_path)
+    rows = []
+    for pkt in packets:
+        if pkt.haslayer(TCP) and pkt.haslayer(IP):
+            flags = pkt[TCP].flags
+            rows.append({
+                "src_ip": pkt[IP].src,
+                "dst_ip": pkt[IP].dst,
+                "flags": str(flags),
+                "sport": pkt[TCP].sport,
+                "dport": pkt[TCP].dport,
+                "len": len(pkt)
+            })
+    return pd.DataFrame(rows)
+
+def analyze_tcp(df):
+    syn_df = df[df["flags"].str.contains("S", regex=False)]
+    rst_df = df[df["flags"].str.contains("R", regex=False)]
+    fin_df = df[df["flags"].str.contains("F", regex=False)]
+    ack_df = df[df["flags"].str.contains("A", regex=False)]
+
+    syn = len(syn_df)
+    rst = len(rst_df)
+    fin = len(fin_df)
+    ack = len(ack_df)
+    total = len(df)
+
+    analysis = []
+    if rst > syn * 0.3:
+        analysis.append("Banyak koneksi reset (RST) — kemungkinan koneksi gagal atau jaringan tidak stabil.")
+    if fin > syn * 0.5:
+        analysis.append("Banyak koneksi ditutup (FIN) — koneksi sering terputus atau timeout.")
+    if ack == 0:
+        analysis.append("Tidak ada ACK — koneksi tidak berjalan normal.")
+    if not analysis:
+        analysis.append("Tidak ada indikasi masalah besar, koneksi TCP tampak normal.")
+
+    # Tambahan: cari IP yang bermasalah (dari RST atau FIN)
+    problem_ips = pd.concat([rst_df, fin_df])[["src_ip", "dst_ip"]]
+    problem_counts = problem_ips.value_counts().reset_index(name="count")
+
+    return {
+        "total": total,
+        "syn": syn,
+        "rst": rst,
+        "fin": fin,
+        "ack": ack,
+        "notes": analysis,
+        "problem_ips": problem_counts
+    }
+
+if uploaded_file is not None:
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".pcap") as tmp:
+        tmp.write(uploaded_file.getbuffer())
+        tmp_path = tmp.name
+
+    st.info("Menganalisa paket... harap tunggu beberapa detik.")
+    df = parse_pcap(tmp_path)
+
+    if len(df) == 0:
+        st.warning("Tidak ada paket TCP yang terdeteksi dalam file PCAP ini.")
+        st.stop()
+
+    summary = analyze_tcp(df)
+
+    st.subheader("Statistik Umum")
+    st.write(f"Total Paket TCP: {summary['total']}")
+    st.write(f"SYN: {summary['syn']}, ACK: {summary['ack']}, FIN: {summary['fin']}, RST: {summary['rst']}")
+
+    st.subheader("Analisa Otomatis")
+    for note in summary["notes"]:
+        st.write("⚠️", note)
+
+    # tampilkan IP bermasalah
+    if not summary["problem_ips"].empty:
+        st.subheader("IP Source/Destination yang Terlibat dalam Koneksi Bermasalah")
+        st.dataframe(summary["problem_ips"], use_container_width=True)
+
+    # Grafik distribusi IP
+    st.subheader("Distribusi IP Source")
+    fig_ip = px.histogram(df, x="src_ip", title="Distribusi Paket per Source IP")
+    st.plotly_chart(fig_ip, use_container_width=True)
+
+    # Grafik flag TCP
+    st.subheader("Distribusi Flag TCP")
+    fig_flags = px.histogram(df, x="flags", title="Distribusi TCP Flags")
+    st.plotly_chart(fig_flags, use_container_width=True)
+else:
+    st.info("Silakan upload file `.pcap` untuk memulai analisis.")
+
