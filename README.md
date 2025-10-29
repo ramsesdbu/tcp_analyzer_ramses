@@ -1,4 +1,4 @@
-i# í·  TCP Network Analyzer â€” Detect Network Issues from PCAP Files
+i# ï¿½ï¿½ï¿½ TCP Network Analyzer â€” Detect Network Issues from PCAP Files
 by **Romulus Ramses**
 
 A web-based tool built with **Python** and **Streamlit** that analyzes `.pcap` files to detect potential TCP connection problems such as resets, timeouts, and abnormal handshakes.  
@@ -6,13 +6,13 @@ Designed for network engineers and telecom specialists who need quick visibility
 
 ---
 
-## í¼ Live Demo
+## ï¿½ï¿½ï¿½ Live Demo
 Try it online on **Streamlit Cloud**  
-í±‰ [https://tcp-analyzer-ramses.streamlit.app](https://tcp-analyzer-ramses.streamlit.app) *(update this link after deploying)*
+ï¿½ï¿½ï¿½ [https://) *
 
 ---
 
-## íº€ Features
+## ï¿½ï¿½ï¿½ Features
 âœ… Upload and parse `.pcap` network capture files  
 âœ… Display summary statistics of TCP packets (SYN, ACK, FIN, RST)  
 âœ… Identify IPs involved in failed or reset connections  
@@ -22,6 +22,6 @@ Try it online on **Streamlit Cloud**
 
 ---
 
-## í·© Example Output
+## ï¿½ï¿½ï¿½ Example Output
 
 
